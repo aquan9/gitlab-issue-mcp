@@ -10,6 +10,7 @@ import click
 from .config import load_config
 from .gitlab_client import GitLabClient
 from .server import create_server
+from gitlab.exceptions import GitlabAuthenticationError, GitlabError
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +91,10 @@ def check_connection(ctx: click.Context) -> None:
     try:
         client = GitLabClient(config.gitlab_url, config.gitlab_api_key)
         user = client.get_current_user()
-    except Exception as exc:
+    except GitlabAuthenticationError as exc:
+        click.echo(f"Authentication failed: {exc}", err=True)
+        sys.exit(1)
+    except GitlabError as exc:
         click.echo(f"Connection failed: {exc}", err=True)
         sys.exit(1)
 

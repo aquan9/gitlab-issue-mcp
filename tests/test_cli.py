@@ -21,7 +21,7 @@ def runner() -> CliRunner:
 
 
 @pytest.fixture()
-def _mock_config():
+def mock_config():
     """Return a minimal Config-like object."""
     from gitlab_issue_mcp.config import Config
 
@@ -50,11 +50,11 @@ def test_cli_help(runner: CliRunner) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_check_connection_success(runner: CliRunner, _mock_config) -> None:
+def test_check_connection_success(runner: CliRunner, mock_config) -> None:
     fake_user = {"username": "alice", "name": "Alice Smith"}
 
     with (
-        patch("gitlab_issue_mcp.cli.load_config", return_value=_mock_config),
+        patch("gitlab_issue_mcp.cli.load_config", return_value=mock_config),
         patch(
             "gitlab_issue_mcp.cli.GitLabClient",
         ) as MockClient,
@@ -81,11 +81,11 @@ def test_check_connection_config_error(runner: CliRunner) -> None:
     assert "Error loading config" in result.output
 
 
-def test_check_connection_auth_error(runner: CliRunner, _mock_config) -> None:
+def test_check_connection_auth_error(runner: CliRunner, mock_config) -> None:
     from gitlab.exceptions import GitlabAuthenticationError
 
     with (
-        patch("gitlab_issue_mcp.cli.load_config", return_value=_mock_config),
+        patch("gitlab_issue_mcp.cli.load_config", return_value=mock_config),
         patch(
             "gitlab_issue_mcp.cli.GitLabClient",
         ) as MockClient,
@@ -98,15 +98,15 @@ def test_check_connection_auth_error(runner: CliRunner, _mock_config) -> None:
         result = runner.invoke(cli, ["check-connection"])
 
     assert result.exit_code == 1
-    assert "Connection failed" in result.output
+    assert "Authentication failed" in result.output
 
 
-def test_check_connection_with_config_flag(runner: CliRunner, _mock_config) -> None:
+def test_check_connection_with_config_flag(runner: CliRunner, mock_config) -> None:
     """--config flag is forwarded to load_config."""
     fake_user = {"username": "bob", "name": "Bob"}
 
     with (
-        patch("gitlab_issue_mcp.cli.load_config", return_value=_mock_config) as mock_load,
+        patch("gitlab_issue_mcp.cli.load_config", return_value=mock_config) as mock_load,
         patch("gitlab_issue_mcp.cli.GitLabClient") as MockClient,
     ):
         instance = MockClient.return_value
@@ -134,11 +134,11 @@ def test_serve_config_error(runner: CliRunner) -> None:
     assert "Error" in result.output
 
 
-def test_serve_invalid_transport(runner: CliRunner, _mock_config) -> None:
-    _mock_config.mcp_transport = "invalid"
+def test_serve_invalid_transport(runner: CliRunner, mock_config) -> None:
+    mock_config.mcp_transport = "invalid"
 
     with (
-        patch("gitlab_issue_mcp.cli.load_config", return_value=_mock_config),
+        patch("gitlab_issue_mcp.cli.load_config", return_value=mock_config),
         patch("gitlab_issue_mcp.cli.create_server", return_value=MagicMock()),
     ):
         result = runner.invoke(cli, ["serve"])
@@ -147,11 +147,11 @@ def test_serve_invalid_transport(runner: CliRunner, _mock_config) -> None:
     assert "Invalid mcp_transport" in result.output
 
 
-def test_serve_runs_mcp(runner: CliRunner, _mock_config) -> None:
+def test_serve_runs_mcp(runner: CliRunner, mock_config) -> None:
     mock_mcp = MagicMock()
 
     with (
-        patch("gitlab_issue_mcp.cli.load_config", return_value=_mock_config),
+        patch("gitlab_issue_mcp.cli.load_config", return_value=mock_config),
         patch("gitlab_issue_mcp.cli.create_server", return_value=mock_mcp),
     ):
         result = runner.invoke(cli, ["serve"])
