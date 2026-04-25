@@ -113,6 +113,34 @@ making it compatible with Claude Desktop and any MCP-aware host. It can also
 be exposed over HTTP using the `sse` or `streamable-http` transports — see
 [Bearer token authentication](#bearer-token-authentication) below.
 
+### Exercising tools from the CLI
+
+For local debugging it is often handy to invoke an MCP tool directly without
+spinning up an MCP client. Two commands are provided:
+
+```bash
+# Discover the available endpoints (tools) and their parameters
+gitlab-issue-mcp list-tools
+
+# Or as JSON, including each tool's input schema
+gitlab-issue-mcp list-tools --json
+
+# Invoke a tool with key=value arguments (values are JSON-parsed when possible)
+gitlab-issue-mcp call-tool list_issues --arg state=opened --arg project_id=42
+
+# …or pass arguments as a single JSON object
+gitlab-issue-mcp call-tool list_issues --json '{"state": "closed"}'
+
+# Read JSON arguments from stdin
+echo '{"username": "alice"}' | gitlab-issue-mcp call-tool get_user_profile --json -
+
+# Suppress the header line so the output can be piped into jq, etc.
+gitlab-issue-mcp call-tool get_issue --arg issue_iid=42 --raw | jq .
+```
+
+These commands load the same configuration as `serve`, so they use your
+configured GitLab URL, API key, and (for `ask_about_issues`) LLM endpoint.
+
 ### Claude Desktop integration
 
 Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
