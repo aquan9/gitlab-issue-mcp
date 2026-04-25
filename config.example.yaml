@@ -1,0 +1,38 @@
+# Configuration for gitlab-issue-mcp
+# Copy this file to config.yaml and fill in the values.
+
+# GitLab instance URL (e.g. https://gitlab.com or your self-hosted URL)
+gitlab_url: "https://gitlab.com"
+
+# Personal access token for the GitLab user whose account is used to pull issues.
+# Requires at least 'read_api' scope.
+gitlab_api_key: "glpat-xxxxxxxxxxxxxxxxxxxx"
+
+# Default project ID to query issues from (optional, can be overridden per-call).
+# You can find the project ID on the project's main page in GitLab.
+# gitlab_project_id: 12345678
+
+# Default group ID or path to query issues from (optional, can be overridden per-call).
+# Use either project_id or group_id; project_id takes precedence.
+# gitlab_group_id: "my-group/my-subgroup"
+
+# Base URL for your LLM provider.
+# Compatible with any OpenAI-compatible endpoint including:
+#   - LiteLLM: http://localhost:4000
+#   - OpenAI:  https://api.openai.com/v1
+#   - Ollama:  http://localhost:11434/v1
+#   - Azure OpenAI: https://<resource>.openai.azure.com/
+llm_base_url: "http://localhost:4000"
+
+# Model name to pass to the LLM provider.
+llm_model: "gpt-4o"
+
+# API key for the LLM provider (set to "NA" if not required, e.g. for local LiteLLM).
+llm_api_key: "sk-your-key-here"
+
+# Maximum number of issues returned per GitLab API query (default: 100, max: 100).
+# max_issues_per_query: 100
+
+# Maximum number of issues fed into the AutoGen agent when answering questions.
+# Issues are truncated at this limit to avoid exceeding the model's context window.
+# max_issues_for_agent: 50
