@@ -96,7 +96,7 @@ class IssueQAAgent:
         if total > shown:
             header = (
                 f"Note: {shown} of {total} issues shown "
-                "(oldest issues omitted to fit context).\n\n"
+                "(remaining issues omitted to fit context).\n\n"
             )
 
         prompt = (
