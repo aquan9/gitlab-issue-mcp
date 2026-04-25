@@ -14,6 +14,11 @@ environment variables:
 - ``LLM_BASE_URL``
 - ``LLM_MODEL``
 - ``LLM_API_KEY``
+- ``MCP_TRANSPORT`` (``stdio``, ``sse``, or ``streamable-http``)
+- ``MCP_HOST``
+- ``MCP_PORT``
+- ``MCP_BEARER_TOKEN`` (enables bearer token authentication for HTTP transports)
+- ``MCP_RESOURCE_SERVER_URL`` (advertised in the WWW-Authenticate header)
 """
 
 from __future__ import annotations
@@ -68,6 +73,27 @@ class Config:
 
     max_issues_for_agent: int = 50
     """Maximum issues forwarded to the AutoGen agent to avoid context overflow."""
+
+    # --- MCP transport / auth -------------------------------------------------
+    mcp_transport: str = "stdio"
+    """Transport used by the FastMCP server: ``stdio``, ``sse``, or ``streamable-http``."""
+
+    mcp_host: str = "127.0.0.1"
+    """Host to bind to when using an HTTP transport."""
+
+    mcp_port: int = 8000
+    """TCP port to bind to when using an HTTP transport."""
+
+    mcp_bearer_token: Optional[str] = None
+    """Static bearer token required on incoming HTTP requests.
+
+    When set (and an HTTP transport is in use) FastMCP will reject any
+    request that does not present ``Authorization: Bearer <token>``.
+    Ignored for the ``stdio`` transport, which is inherently local.
+    """
+
+    mcp_resource_server_url: Optional[str] = None
+    """Public URL of this MCP server, advertised in WWW-Authenticate responses."""
 
 
 def load_config(path: Optional[str] = None) -> Config:
@@ -141,11 +167,24 @@ def _apply_env_overrides(data: dict) -> None:
         "LLM_BASE_URL": "llm_base_url",
         "LLM_MODEL": "llm_model",
         "LLM_API_KEY": "llm_api_key",
+        "MCP_TRANSPORT": "mcp_transport",
+        "MCP_HOST": "mcp_host",
+        "MCP_PORT": "mcp_port",
+        "MCP_BEARER_TOKEN": "mcp_bearer_token",
+        "MCP_RESOURCE_SERVER_URL": "mcp_resource_server_url",
     }
     for env_var, key in mapping.items():
         value = os.environ.get(env_var)
         if value:
-            data[key] = value
+            if key == "mcp_port":
+                try:
+                    data[key] = int(value)
+                except ValueError as exc:
+                    raise ValueError(
+                        f"{env_var} must be a valid integer, got {value!r}"
+                    ) from exc
+            else:
+                data[key] = value
 
 
 def _validate_required(data: dict) -> None:

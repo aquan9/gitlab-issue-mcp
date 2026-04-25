@@ -26,8 +26,24 @@ def main() -> None:
 
     mcp = create_server(config)
 
-    logger.info("Starting gitlab-issue-mcp server (stdio transport)…")
-    mcp.run()
+    transport = config.mcp_transport
+    if transport not in ("stdio", "sse", "streamable-http"):
+        logger.error(
+            "Invalid mcp_transport %r; expected one of stdio, sse, streamable-http",
+            transport,
+        )
+        sys.exit(1)
+
+    if transport == "stdio":
+        logger.info("Starting gitlab-issue-mcp server (stdio transport)…")
+    else:
+        logger.info(
+            "Starting gitlab-issue-mcp server (%s transport) on %s:%s…",
+            transport,
+            config.mcp_host,
+            config.mcp_port,
+        )
+    mcp.run(transport=transport)
 
 
 if __name__ == "__main__":

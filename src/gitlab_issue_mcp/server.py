@@ -21,15 +21,39 @@ from __future__ import annotations
 
 import json
 import logging
+import secrets
 from typing import Any, Dict, Optional
 
+from mcp.server.auth.provider import AccessToken, TokenVerifier
+from mcp.server.auth.settings import AuthSettings
 from mcp.server.fastmcp import FastMCP
+from pydantic import AnyHttpUrl
 
 from .agent import IssueQAAgent
 from .config import Config
 from .gitlab_client import GitLabClient
 
 logger = logging.getLogger(__name__)
+
+
+class StaticTokenVerifier(TokenVerifier):
+    """Verify bearer tokens against a single shared secret.
+
+    A request is authorized when its ``Authorization: Bearer <token>``
+    header matches the configured token exactly.  Comparison uses
+    :func:`secrets.compare_digest` to avoid timing leaks.
+    """
+
+    def __init__(self, expected_token: str, *, client_id: str = "gitlab-issue-mcp") -> None:
+        if not expected_token:
+            raise ValueError("StaticTokenVerifier requires a non-empty token")
+        self._expected_token = expected_token
+        self._client_id = client_id
+
+    async def verify_token(self, token: str) -> Optional[AccessToken]:
+        if not token or not secrets.compare_digest(token, self._expected_token):
+            return None
+        return AccessToken(token=token, client_id=self._client_id, scopes=[])
 
 
 def create_server(config: Config) -> FastMCP:
@@ -54,14 +78,37 @@ def create_server(config: Config) -> FastMCP:
     }
     qa_agent = IssueQAAgent(llm_config)
 
-    mcp = FastMCP(
-        "gitlab-issue-mcp",
-        instructions=(
+    fastmcp_kwargs: Dict[str, Any] = {
+        "instructions": (
             "MCP server that exposes GitLab issues and an AI-powered "
             "question-answering service.  Use list_issues / get_issue for "
             "raw data access, and ask_about_issues for natural-language Q&A."
         ),
-    )
+        "host": config.mcp_host,
+        "port": config.mcp_port,
+    }
+
+    # Bearer token authentication is only meaningful for HTTP transports.
+    # For the stdio transport the channel is a private pipe and FastMCP's
+    # auth middleware is never reached, so we skip wiring it up.
+    if config.mcp_bearer_token and config.mcp_transport != "stdio":
+        resource_url = (
+            config.mcp_resource_server_url
+            or f"http://{config.mcp_host}:{config.mcp_port}"
+        )
+        fastmcp_kwargs["token_verifier"] = StaticTokenVerifier(config.mcp_bearer_token)
+        fastmcp_kwargs["auth"] = AuthSettings(
+            issuer_url=AnyHttpUrl(resource_url),
+            resource_server_url=AnyHttpUrl(resource_url),
+        )
+        logger.info("Bearer token authentication enabled for MCP HTTP transport")
+    elif config.mcp_bearer_token and config.mcp_transport == "stdio":
+        logger.warning(
+            "mcp_bearer_token is set but transport is 'stdio'; bearer auth "
+            "is only applied to HTTP transports and will be ignored."
+        )
+
+    mcp = FastMCP("gitlab-issue-mcp", **fastmcp_kwargs)
 
     # ------------------------------------------------------------------
     # Tool: list_issues
