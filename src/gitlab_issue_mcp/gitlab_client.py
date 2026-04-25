@@ -173,6 +173,21 @@ class GitLabClient:
     # Projects
     # ------------------------------------------------------------------
 
+    def get_current_user(self) -> Dict[str, Any]:
+        """Return the currently authenticated user's profile.
+
+        Raises
+        ------
+        gitlab.exceptions.GitlabError
+            If the API call fails (e.g. invalid token or network error).
+        """
+        try:
+            user = self._gl.users.get_current()
+            return _obj_to_dict(user)
+        except GitlabError as exc:
+            logger.error("Error fetching current user: %s", exc)
+            raise
+
     def get_project(self, project_id: int) -> Dict[str, Any]:
         """Return metadata for a GitLab project.
 
