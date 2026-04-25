@@ -83,6 +83,11 @@ Any config value can be overridden at runtime:
 | `LLM_BASE_URL` | `llm_base_url` |
 | `LLM_MODEL` | `llm_model` |
 | `LLM_API_KEY` | `llm_api_key` |
+| `MCP_TRANSPORT` | `mcp_transport` (`stdio`, `sse`, or `streamable-http`) |
+| `MCP_HOST` | `mcp_host` |
+| `MCP_PORT` | `mcp_port` |
+| `MCP_BEARER_TOKEN` | `mcp_bearer_token` |
+| `MCP_RESOURCE_SERVER_URL` | `mcp_resource_server_url` |
 
 ### Config file search order
 
@@ -103,8 +108,10 @@ gitlab-issue-mcp
 python -m gitlab_issue_mcp
 ```
 
-The server communicates over **stdio** (standard MCP transport), making it
-compatible with Claude Desktop and any MCP-aware host.
+The server communicates over **stdio** by default (standard MCP transport),
+making it compatible with Claude Desktop and any MCP-aware host. It can also
+be exposed over HTTP using the `sse` or `streamable-http` transports — see
+[Bearer token authentication](#bearer-token-authentication) below.
 
 ### Claude Desktop integration
 
@@ -122,6 +129,88 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
   }
 }
 ```
+
+---
+
+## Bearer token authentication
+
+The server is built on [FastMCP](https://github.com/modelcontextprotocol/python-sdk)
+(`mcp.server.fastmcp.FastMCP`). When you expose it over HTTP (`sse` or
+`streamable-http`) you should require a bearer token so that only authorised
+clients can call your GitLab tools.
+
+### 1. Generate a token
+
+Use any cryptographically strong random string. For example:
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+### 2. Configure the server
+
+Pick **one** of the following methods.
+
+**`config.yaml`:**
+
+```yaml
+mcp_transport: "streamable-http"   # or "sse"
+mcp_host: "0.0.0.0"
+mcp_port: 8000
+mcp_bearer_token: "REPLACE_WITH_THE_GENERATED_TOKEN"
+# Optional: public URL advertised in WWW-Authenticate responses.
+mcp_resource_server_url: "https://mcp.example.com"
+```
+
+**Environment variables:**
+
+```bash
+export MCP_TRANSPORT="streamable-http"
+export MCP_HOST="0.0.0.0"
+export MCP_PORT="8000"
+export MCP_BEARER_TOKEN="REPLACE_WITH_THE_GENERATED_TOKEN"
+export MCP_RESOURCE_SERVER_URL="https://mcp.example.com"   # optional
+gitlab-issue-mcp
+```
+
+When `mcp_bearer_token` is set together with an HTTP transport, FastMCP wraps
+every endpoint in `RequireAuthMiddleware` and rejects requests that do not
+present a valid `Authorization: Bearer <token>` header (HTTP 401). The
+`stdio` transport ignores `mcp_bearer_token` because the channel is a private
+pipe between the host and the subprocess.
+
+### 3. Call the server
+
+Clients must include the token on every request:
+
+```bash
+curl -H "Authorization: Bearer $MCP_BEARER_TOKEN" \
+     https://mcp.example.com/mcp
+```
+
+For an MCP host that supports HTTP transports, configure it with the same
+header. For example, with the `mcp` Python SDK client:
+
+```python
+from mcp.client.streamable_http import streamablehttp_client
+
+async with streamablehttp_client(
+    "https://mcp.example.com/mcp",
+    headers={"Authorization": f"Bearer {token}"},
+) as (read, write, _):
+    ...
+```
+
+### Security notes
+
+- Always run HTTP transports behind TLS (terminate TLS at a reverse proxy
+  such as nginx, Caddy, or a cloud load balancer). The bearer token is sent
+  in clear text inside the `Authorization` header.
+- Treat the bearer token like any other secret: never commit it, rotate it
+  periodically, and prefer environment variables or a secrets manager over
+  storing it on disk.
+- Bind to `127.0.0.1` (the default) unless you intentionally want the
+  server reachable from other hosts.
 
 ---
 

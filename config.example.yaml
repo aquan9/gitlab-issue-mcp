@@ -36,3 +36,27 @@ llm_api_key: "sk-your-key-here"
 # Maximum number of issues fed into the AutoGen agent when answering questions.
 # Issues are truncated at this limit to avoid exceeding the model's context window.
 # max_issues_for_agent: 50
+
+# ---------------------------------------------------------------------------
+# MCP transport & authentication
+# ---------------------------------------------------------------------------
+
+# Transport used by the FastMCP server. One of: "stdio", "sse", "streamable-http".
+# - "stdio" (default) is used by Claude Desktop and most local MCP hosts.
+# - "sse" / "streamable-http" expose the server over HTTP for remote clients.
+# mcp_transport: "stdio"
+
+# Host/port to bind to when using an HTTP transport. Ignored for stdio.
+# mcp_host: "127.0.0.1"
+# mcp_port: 8000
+
+# Static bearer token required on incoming HTTP requests. When set together with
+# an HTTP transport, FastMCP rejects any request that does not present
+# `Authorization: Bearer <token>`. Generate a long random value, e.g.
+#   python -c "import secrets; print(secrets.token_urlsafe(32))"
+# Ignored for the "stdio" transport.
+# mcp_bearer_token: "REPLACE_WITH_A_LONG_RANDOM_STRING"
+
+# Public URL of this MCP server, advertised in WWW-Authenticate responses.
+# Defaults to http://<mcp_host>:<mcp_port>.
+# mcp_resource_server_url: "https://mcp.example.com"
