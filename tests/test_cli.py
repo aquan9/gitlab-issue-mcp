@@ -325,6 +325,35 @@ def test_call_tool_with_json_option(runner: CliRunner, mock_config) -> None:
     assert "ok" in result.output
 
 
+def test_call_tool_with_json_stdin(runner: CliRunner, mock_config) -> None:
+    """--json - reads the JSON payload from stdin."""
+    from mcp.types import TextContent
+
+    tools = [_fake_tool("list_issues", "List issues.")]
+    captured: dict = {}
+
+    async def _call_tool(name, arguments):
+        captured["arguments"] = arguments
+        return ([TextContent(type="text", text="ok")], {})
+
+    mcp = _make_async_mcp(tools)
+    mcp.call_tool = _call_tool
+
+    with (
+        patch("gitlab_issue_mcp.cli.load_config", return_value=mock_config),
+        patch("gitlab_issue_mcp.cli.create_server", return_value=mcp),
+    ):
+        result = runner.invoke(
+            cli,
+            ["call-tool", "list_issues", "--json", "-"],
+            input='{"state": "opened", "project_id": 99}',
+        )
+
+    assert result.exit_code == 0, result.output
+    assert captured["arguments"] == {"state": "opened", "project_id": 99}
+    assert "ok" in result.output
+
+
 def test_call_tool_unknown_tool(runner: CliRunner, mock_config) -> None:
     tools = [_fake_tool("list_issues", "List issues.")]
     mcp = _make_async_mcp(tools)
